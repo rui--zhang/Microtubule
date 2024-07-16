@@ -9,12 +9,12 @@ def setupParserOptions():
 	parser = optparse.OptionParser()
 	parser.add_option("-f",dest="fpar",type="string",metavar="FILE",
 		help="13pf_1_r1.par")
-	parser.add_option("--apix", dest="apix", type="float", metavar="FLOAT",
-                help="pixel size in angstroms")
+	#parser.add_option("--apix", dest="apix", type="float", metavar="FLOAT",default=1.32,
+        #        help="pixel size in angstroms, default 1.32, no need to specify if fv9")
 	parser.add_option("--pf", dest="pf", type="int", metavar="int",
                 help="protofilament number")
-	parser.add_option("--fv",dest="fv",type="choice", metavar="['v8','v9']",
-                choices=['v8','v9'],default='v9', help="input frealign format, default v9, output is always v9")
+	#parser.add_option("--fv",dest="fv",type="choice", metavar="['v8','v9']",
+        #        choices=['v8','v9'],default='v9', help="input frealign format, default v9, output is always v9")
 
 	options,args = parser.parse_args()
 
@@ -110,32 +110,51 @@ def findclosest(target, collection):
     return min((abs(target - i), i) for i in collection)[1]
 
 # make phi follow a line
-def unifyPhi(params,MT,philist):
+def unifyPhi(params,MT,philist,scorelist):
 	import copy
 	MONOMER = 41.0
         PF = params['pf']
         RISE = MONOMER*3/PF
         TWIST = -360./PF
+
+	score_std = np.array(scorelist).std()
+	
 	if os.path.isfile('philist.txt'):
 		#print "will use philist.txt\r",
 		phi_MT,sign_MT = GetPhifromfile(MT,philist)
-	else:
+	elif score_std != 0:
+		#print "score_std != 0, use phi with the best score"
+		#start from the particle with the best score
+        	loc = scorelist.index(max(scorelist))
+        	phi_MT = philist[loc]
+		sign_MT = 1
+	else:	
+		#print "score_std = 0, use the median phi"
 		#print "no philist.txt file specified, I will use median PHI"		
 		phi_MT = mymedian(philist)
 		sign_MT = 1
+	#print 'my phi is %.2f'%phi_MT
 	n = len(philist)
 	philist2 = copy.copy(philist)
 
-	loc = philist.index(findclosest(phi_MT,philist))
-	philist2[loc] = phi_MT
-	#print "MT %d: loc = %.2f"%(MT,findclosest(phi_MT,philist))		
+	if score_std != 0:
+		loc = scorelist.index(max(scorelist))
+		philist2[loc] = phi_MT
+	else:
+		loc = philist.index(findclosest(phi_MT,philist))
+		philist2[loc] = phi_MT
+		#print "MT %d: loc = %.2f"%(MT,findclosest(phi_MT,philist))		
 
 	for i in range(loc+1,n):
 		dphi = philist2[i-1] - philist2[i]
+		if abs(dphi) > 345.0:
+			dphi = 0.0
 		philist2[i] += TWIST*round(dphi/TWIST)
 
 	for i in range(loc-1,-1,-1):
 		dphi = philist2[i+1] - philist2[i]
+		if abs(dphi) > 345.0:
+			dphi = 0.0
 		philist2[i] += TWIST*round(dphi/TWIST)
 
 	return philist2,sign_MT
@@ -160,6 +179,11 @@ def shift40A_MT(shxlist,shylist,psi):
                 shylist = shylist_v2
 	return shxlist,shylist
 
+def findClosestTheta(theta,theta_ref):
+	if abs(theta-theta_ref) > 2.0:
+		theta = theta_ref
+        return theta
+
 def followline(shxlist,shylist,psilist,loc):
 	n = len(shxlist)
 	for i in range(loc+1,n):
@@ -167,6 +191,15 @@ def followline(shxlist,shylist,psilist,loc):
 	for i in range(loc-1,-1,-1):
 		shxlist[i],shylist[i] = findClosestShxy(shxlist[i],shylist[i],shxlist[i+1],shylist[i+1],psilist[i])
 	return shxlist,shylist
+
+def followline_theta(thetalist,loc):
+        n = len(thetalist)
+        for i in range(loc+1,n):
+                thetalist[i] = findClosestTheta(thetalist[i],thetalist[i-1])
+        for i in range(loc-1,-1,-1):
+		thetalist[i] = findClosestTheta(thetalist[i],thetalist[i+1])
+        return thetalist
+
 
 def unifyAll(params,l_MT,MT):
 	MONOMER = 41.0
@@ -184,10 +217,11 @@ def unifyAll(params,l_MT,MT):
 	scorelist = [float(x.split()[14]) for x in l_MT]
 	#MT = int(l_MT[0].split()[7])
 
-	philist2,sign_MT = unifyPhi(params,MT,philist)
+	philist2,sign_MT = unifyPhi(params,MT,philist,scorelist)
 
 	for i in range(n):
 		dphi = philist2[i] - philist[i]
+		#print dphi
 		if abs(dphi) > 15.0:
 			#scale = (phi_new-philist[i])/TWIST
 			scale = round(dphi/TWIST)
@@ -196,15 +230,18 @@ def unifyAll(params,l_MT,MT):
 		philist[i] = philist2[i]
 		
 	#start from the particle with the best score
-	if params['fv'] == 'v8':
-		loc = scorelist.index(min(scorelist))
-	else:
-		loc = scorelist.index(max(scorelist))
+	#if params['fv'] == 'v8':
+	#	loc = scorelist.index(min(scorelist))
+	#else:
+	#	loc = scorelist.index(max(scorelist))
+	loc = scorelist.index(max(scorelist))
+	
+	if not os.path.isfile('philist.txt'):
+		shxlist,shylist = followline(shxlist,shylist,psilist,loc)
+		thetalist = followline_theta(thetalist,loc)
 
-	shxlist,shylist = followline(shxlist,shylist,psilist,loc)
-
-	psi_MT = np.median(psilist)
-	theta_MT = np.median(thetalist)
+	psi_MT = mymedian(psilist)
+	#psi_MT = psilist[loc]
 
 	if sign_MT < 0:
 		shxlist,shylist = shift40A_MT(shxlist,shylist,psi_MT)
@@ -220,18 +257,25 @@ def unifyAll(params,l_MT,MT):
                 #phi = float(t1[3])
                 #shx = float(t1[4])
                 #shy = float(t1[5])
-		psi = psilist[i]
-		if abs(psi-psi_MT) < 30.0 or abs(psi-psi_MT) > 330:
-			psi = psilist[i]
-		else:
-                        psi = psi_MT
 		theta = thetalist[i]
-		if abs(theta-theta_MT) > 5.0:
-			theta = theta_MT
+		psi = psilist[i]
+                if abs(psi-psi_MT) < 30.0 or abs(psi-psi_MT) > 330:
+                        psi = psilist[i]
+                else:
+                        psi = psi_MT
+			#theta = 180.-theta
+		#if abs(theta-theta_MT) > 5.0:
+		#	theta = theta_MT
 		phi = philist[i]
 		shx = shxlist[i]
 		shy = shylist[i]
+		#print i,shx,shy
 		shx,shy = closer2origin(shx,shy,psi)
+		shx,shy = closer2origin(shx,shy,psi)
+		shx,shy = closer2origin(shx,shy,psi)
+		shx,shy = closer2origin(shx,shy,psi)
+		shx,shy = closer2origin(shx,shy,psi)
+		#print i,shx,shy
                 mag = float(t1[6])
                 #micro = int(t1[7])
 		micro = MT
@@ -286,7 +330,9 @@ def mainloop(params):
 		MTparlist[MT].append(i)
 
 	if os.path.isfile('philist.txt'):
+		print "############"
 		print "will use philist.txt"
+		print "############"
 	else:
 		print "no philist.txt file specified, I will use median PHI"
 	
@@ -295,8 +341,14 @@ def mainloop(params):
 	for MT in MTlist:
 		print "working on MT %d\t\r"%MT,
 		l_MT = MTparlist[MT]
-		if params['fv'] == 'v8':
-			l_MT = fv8tov9(l_MT,params)
+		#if params['fv'] == 'v8':
+		#	l_MT = fv8tov9(l_MT,params)
+		NN = len(l_MT)
+		#if NN > 300:
+		#	fout.writelines(unifyAll(params,l_MT[:NN/2],MT))
+		#	fout.writelines(unifyAll(params,l_MT[NN/2:],MT))
+		#else:
+		#	fout.writelines(unifyAll(params,l_MT,MT))
 		fout.writelines(unifyAll(params,l_MT,MT))
 			
 	f1.close()
