@@ -48,8 +48,8 @@ def fre2relion(params):
 
 	cutoff = params['cut']
 
-	fout = file('%s_fre2relion_above%d_NEW2.star'%((params['fpar2'][:-5]),cutoff),"w")
-	fout2 = file('%s_fre2relion_below%d_NEW2.star'%((params['fpar2'][:-5]),cutoff),"w")
+	fout = file('%s_fre2relion_above%.1f_NEW2.star'%((params['fpar2'][:-5]),cutoff),"w")
+	fout2 = file('%s_fre2relion_below%.1f_NEW2.star'%((params['fpar2'][:-5]),cutoff),"w")
 	
 
 	n1 = len(l1)
@@ -102,7 +102,7 @@ def fre2relion(params):
 		t2 = l2[i].split()
 #		fout.write('%s\t%s\t%s\t%s\t%s\t %.6f\t%.6f\t%.6f\t %s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n'%(t2[0],t2[1],t2[2],t2[3],t2[4],df1,df2,angast,t2[8],t2[9],t2[10],t2[11],t2[12],t2[13],t2[14],t2[15],t2[16],1,phi,theta,psi,-1*shx/apix,-1*shy/apix))
 		#fout.write('%s\t%s\t%s\t%s\t%s\t %s\t%s\t%s\t%s\t%s\t %s\t%s\t%s\t%d\t%.6f\t %.6f\t%.6f\t%.6f\t%.6f\n'%(t2[0],t2[1],t2[2],t2[3],t2[4],t2[5],t2[6],t2[7],t2[8],t2[9],t2[10],t2[11],t2[12],1,phi,theta,psi,-1*shx/apix,-1*shy/apix))
-		if pres >= cutoff:
+		if (pres >= cutoff) and (abs(theta-90.0) < 20.0):
 			fout.write('%s\t%s\t%s\t%s\t%.6f\t %.6f\t%.6f\t%.6f\t%.6f\t%s\t %s\t%s\t%s\t%s\t%s\t %s\t%s\t%s\n'%(t2[0],t2[1],t2[2],t2[3],phi,theta,psi,-1*shx,-1*shy,t2[9],t2[10],t2[11],t2[12],t2[13],t2[14],t2[15],t2[16],t2[17]))
 		else:
 			fout2.write('%s\t%s\t%s\t%s\t%.6f\t %.6f\t%.6f\t%.6f\t%.6f\t%s\t %s\t%s\t%s\t%s\t%s\t %s\t%s\t%s\n'%(t2[0],t2[1],t2[2],t2[3],phi,theta,psi,-1*shx,-1*shy,t2[9],t2[10],t2[11],t2[12],t2[13],t2[14],t2[15],t2[16],t2[17]))
@@ -113,8 +113,8 @@ def fre2relion(params):
 	fout.close()
 	fout2.close()
 
-	os.system("wc %s_fre2relion_above%d_NEW2.star"%((params['fpar2'][:-5]),cutoff))
-	os.system("wc %s_fre2relion_below%d_NEW2.star"%((params['fpar2'][:-5]),cutoff))
+	os.system("wc %s_fre2relion_above%.1f_NEW2.star"%((params['fpar2'][:-5]),cutoff))
+	os.system("wc %s_fre2relion_below%.1f_NEW2.star"%((params['fpar2'][:-5]),cutoff))
 
 if __name__ == "__main__":
 	params = setupParserOptions()
