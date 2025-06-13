@@ -183,8 +183,8 @@ def unifyAll(path,params,l_MT,MT):
 			# only update if the score is better
 			if bestscore_tmp > scorelist[i]:
 				l_MT_new[i] = l_MT_new_tmp2[i]
-                        elif abs(bestpsi-psilist[i]) > 5.0:
-                                l_MT_new[i] = l_MT_new_tmp2[i]
+                        #elif abs(bestpsi-psilist[i]) > 5.0:
+                        #        l_MT_new[i] = l_MT_new_tmp2[i]
 			else:
 				l_MT_new[i] = l_MT[i]
 		bestscore = float(l_MT_new[i].strip().split()[-2])
@@ -206,8 +206,8 @@ def unifyAll(path,params,l_MT,MT):
 			# only update if the score is better
 			if bestscore_tmp > scorelist[i]:
 				l_MT_new[i] = l_MT_new_tmp2[i]
-			elif abs(bestpsi-psilist[i]) > 5.0:
-				l_MT_new[i] = l_MT_new_tmp2[i]
+			#elif abs(bestpsi-psilist[i]) > 5.0:
+			#	l_MT_new[i] = l_MT_new_tmp2[i]
 			else:
 				l_MT_new[i] = l_MT[i]
 		bestscore = float(l_MT_new[i].strip().split()[-2])
